@@ -144,15 +144,15 @@ public class BMealActivity extends AppCompatActivity {
                     DialogInput.setError("Enter group name");
                 } else {
                     Calendar calendar = Calendar.getInstance();
-
                     SimpleDateFormat DateFormat = new SimpleDateFormat("MMM dd, YYYY");
                     String CurrentDate = DateFormat.format(calendar.getTime());
-
                     SimpleDateFormat TimeFormat = new SimpleDateFormat("hh:mm aa");
                     String CurrentTime = TimeFormat.format(calendar.getTime());
+                    final int TotalDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
 
-                    String GroupID = RootRef.child("BMeal").child("Groups").push().getKey();
+                    final String GroupID = RootRef.child("BMeal").child("Groups").push().getKey();
 
+                    // map for group information
                     Map GroupMap = new HashMap();
                     GroupMap.put("name", GroupName);
                     GroupMap.put("group_id", GroupID);
@@ -160,6 +160,7 @@ public class BMealActivity extends AppCompatActivity {
                     GroupMap.put("register_date", CurrentDate);
                     GroupMap.put("register_time", CurrentTime);
 
+                    // map for all information
                     Map UserGroupMap = new HashMap();
                     UserGroupMap.put("BMeal/Groups/" + GroupID, GroupMap);
                     UserGroupMap.put("BMeal/Users/" + CurrentUser.getUid(), GroupID);
@@ -171,8 +172,70 @@ public class BMealActivity extends AppCompatActivity {
                         @Override
                         public void onComplete(@NonNull Task task) {
                             if (task.isSuccessful()) {
-                                LoadingBar.dismiss();
-                                Toast.makeText(BMealActivity.this, GroupName + " is created", Toast.LENGTH_SHORT).show();
+                                final DatabaseReference GroupRef = RootRef.child("BMeal").child("Groups").child(GroupID);
+                                GroupRef.child("members").child(CurrentUser.getUid()).child("status").setValue("ok").addOnCompleteListener(new OnCompleteListener<Void>() {
+                                    @Override
+                                    public void onComplete(@NonNull Task<Void> task) {
+                                        if (task.isSuccessful()) {
+                                            Map UserMealMap = new HashMap();
+                                            for (int DayCounterForMeal = 1; DayCounterForMeal <= TotalDays; DayCounterForMeal++) {
+                                                UserMealMap.put(DayCounterForMeal + "/breakfast", "0");
+                                                UserMealMap.put(DayCounterForMeal + "/lunch", "0");
+                                                UserMealMap.put(DayCounterForMeal + "/dinner", "0");
+                                            }
+
+                                            GroupRef.child("meals").child(CurrentUser.getUid()).updateChildren(UserMealMap).addOnCompleteListener(new OnCompleteListener() {
+                                                @Override
+                                                public void onComplete(@NonNull Task task) {
+                                                    if (task.isSuccessful()) {
+                                                        Map MealCounterMap = new HashMap();
+                                                        for (int DayCounterForCounter = 1; DayCounterForCounter <= TotalDays; DayCounterForCounter++) {
+                                                            MealCounterMap.put(DayCounterForCounter + "/breakfast", "0.0");
+                                                            MealCounterMap.put(DayCounterForCounter + "/lunch", "0.0");
+                                                            MealCounterMap.put(DayCounterForCounter + "/dinner", "0.0");
+                                                        }
+
+                                                        GroupRef.child("meal_counter").updateChildren(MealCounterMap).addOnCompleteListener(new OnCompleteListener() {
+                                                            @Override
+                                                            public void onComplete(@NonNull Task task) {
+                                                                if (task.isSuccessful()) {
+                                                                    Map MealMenuMap = new HashMap();
+                                                                    for (int DayCounterForMenu = 1; DayCounterForMenu <= TotalDays; DayCounterForMenu++) {
+                                                                        MealMenuMap.put(DayCounterForMenu + "/breakfast", "hidden");
+                                                                        MealMenuMap.put(DayCounterForMenu + "/lunch", "hidden");
+                                                                        MealMenuMap.put(DayCounterForMenu + "/dinner", "hidden");
+                                                                    }
+
+                                                                    GroupRef.child("meal_menu").updateChildren(MealMenuMap).addOnCompleteListener(new OnCompleteListener() {
+                                                                        @Override
+                                                                        public void onComplete(@NonNull Task task) {
+                                                                            if (task.isSuccessful()) {
+                                                                                LoadingBar.dismiss();
+                                                                                Toast.makeText(BMealActivity.this, GroupName + " is created", Toast.LENGTH_SHORT).show();
+                                                                            } else {
+                                                                                LoadingBar.dismiss();
+                                                                                Toast.makeText(BMealActivity.this, task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                } else {
+                                                                    LoadingBar.dismiss();
+                                                                    Toast.makeText(BMealActivity.this, task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                                                }
+                                                            }
+                                                        });
+                                                    } else {
+                                                        LoadingBar.dismiss();
+                                                        Toast.makeText(BMealActivity.this, task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                                    }
+                                                }
+                                            });
+                                        } else {
+                                            LoadingBar.dismiss();
+                                            Toast.makeText(BMealActivity.this, task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                        }
+                                    }
+                                });
                             } else {
                                 LoadingBar.dismiss();
                                 Toast.makeText(BMealActivity.this, task.getException().getMessage(), Toast.LENGTH_SHORT).show();
